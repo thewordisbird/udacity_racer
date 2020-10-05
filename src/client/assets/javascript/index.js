@@ -1,5 +1,7 @@
 // PROVIDED CODE BELOW (LINES 1 - 80) DO NOT REMOVE
 
+const { response } = require("express")
+
 // The store will hold all information needed globally
 var store = {
 	track_id: undefined,
@@ -318,9 +320,25 @@ function defaultFetchOpts() {
 }
 
 // TODO - Make a fetch call (with error handling!) to each of the following API endpoints 
+async function fetchData(endpoint, method, body) {
+    resp = await fetch(endpoint, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+        throw new Error(`HTTP error! status: ${resp.status}`);
+    } else {
+        return resp.json()
+    }
+}
 
 function getTracks() {
-	// GET request to `${SERVER}/api/tracks`
+    // GET request to `${SERVER}/api/tracks`
+    
 }
 
 function getRacers() {
