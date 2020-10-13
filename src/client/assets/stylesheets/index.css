@@ -21,7 +21,7 @@ body {
 }
 
 header {
-  background-image: url('https://via.placeholder.com/1150');
+  background-image: url('/assets/images/race_background.jpg');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -33,7 +33,7 @@ header {
 
 h1 {
   color: white;
-  text-shadow: 3px 2px hsl(0, 2%, 51%);
+  text-shadow: 3px 2px gray;
   font-size: 70px;
   text-transform: uppercase;
 }
@@ -93,6 +93,11 @@ section {
 footer {
   height: 200px;
   background-color: black;
+}
+
+.cards-list img {
+    width: 250px;
+    height: 150px;
 }
 
 /* -------------------  TABLET  --------------------- */
