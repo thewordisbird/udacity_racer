@@ -3,48 +3,33 @@
 // const { response } = require("express")
 
 // The store will hold all information needed globally
-let store = {
-	track_id: undefined,
-	player_id: undefined,
-	race_id: undefined,
+let store = Immutable.Map({});
+
+function updateStoreValue (key, value) {
+    const newStore = store.setIn([key], Immutable.fromJS(value));
+    if (!newStore.equals(store)) {
+        store = newStore;
+    }
+    return store.toJS()[key]
 }
 
-function getPlayerId() {
-    return store.player_id
-}
-
-function getTrackId() {
-    return store.track_id
-}
-
-function getRaceId() {
-    return store.race_id
-}
-
-function setPlayerId(playerId) {
-    store.player_id = parseInt(playerId)
-}
-
-function setTrackId(trackId) {
-    store.track_id = trackId
-}
-
-function setRaceId(raceId) {
-    store.race_id = raceId
+function getStoreValue (key) {
+    return store.toJS()[key]
 }
 
 function validateRaceForm() {
-    if (store.player_id && store.track_id) {
+    
+    if (store.has("player_id") && store.has("track_id")) {
 
         return true
     } else {
-        if (!store.track_id) {
+        if (!store.has("track_id")) {
             renderAt("#track_validate", "<h4>Please Select A Track!</h4>")
         } else {
             renderAt("#track_validate", "")
         }
         
-        if (!store.player_id) {
+        if (!store.has("player_id")) {
             renderAt("#racer_validate", "<h4>Please Select A Racer!</h4>")
         } else {
             renderAt("#racer_validate", "")
@@ -87,7 +72,7 @@ function setupClickHandlers() {
 
         // Race track form field        
 		if (target.closest('.card.track')) {
-            const current = getTrackId()
+            const current = getStoreValue('track_id')
             const selected = target.closest('.card.track')
             
             if (current) {
@@ -101,8 +86,8 @@ function setupClickHandlers() {
 
 		// Racer form field
 		if (target.closest('.card.podracer')) {
-            let current = getPlayerId()
-            let selected = target.closest('.card.podracer')
+            const current = getStoreValue('player_id')
+            const selected = target.closest('.card.podracer')
            
             if (current) {
                 document.getElementById(`racer_${current}`).style.border = "none"
@@ -142,39 +127,42 @@ async function delay(ms) {
 
 // This async function controls the flow of the race, add the logic and error handling
 async function handleCreateRace() {
-	// Get player_id and track_id from the store
-    const playerId = getPlayerId();
-    const trackId = getTrackId();
+    try {
+        // Get player_id and track_id from the store
+        const playerId = getStoreValue('player_id');
+        const trackId = getStoreValue('track_id');
+        
+        // Invoke the API call to create the race, then save the result
+        const race = await createRace(playerId, trackId)
 
-	// Invoke the API call to create the race, then save the result
-    const race = await createRace(playerId, trackId)
-
-    // Update the store with the race id
-    const raceId = race.ID - 1
-    setRaceId(raceId)
-
-    // render starting UI
-    renderAt('#race', renderRaceStartView(race.Track))
-    
-	// The race has been created, now start the countdown
-    // Call the async function runCountdown
-    await runCountdown()
-    
-    // Call the async function startRace
-    await startRace(raceId)
-
-    // Call the async function runRace to run the race
-    await runRace(raceId)
+        // Update the store with the race id
+        const raceId = race.ID - 1
+        updateStoreValue('race_id', raceId)
+        
+        // render starting UI
+        renderAt('#race', renderRaceStartView(race.Track))
+        
+        // The race has been created, now start the countdown
+        // Call the async function runCountdown
+        await runCountdown()
+        
+        // Call the async function startRace
+        await startRace(raceId)
+        
+        // Call the async function runRace to run the race
+        await runRace(raceId)
+    } catch(error) {
+        console.log("Problem with handleCreateRace::", error)
+    }
 }
 
 function runRace(raceID) {
 	return new Promise(resolve => {
         // Use Javascript's built in setInterval method to get race info every 500ms
-        let updateRaceInfo = setInterval(async function () {
-            let raceInfo = await getRace(raceID)
-            let positions = raceInfo.positions.map(customizeRider)
+        const updateRaceInfo = setInterval(async function () {
+            const raceInfo = await getRace(raceID)
+            const positions = raceInfo.positions.map(customizeRider)
 
-            
             if (raceInfo.status === "in-progress") {
                 // If the race info status property is "in-progress", update the leaderboard
                 renderAt('#leaderBoard', raceProgress(positions))
@@ -199,7 +187,7 @@ async function runCountdown() {
 
 		return new Promise(resolve => {
             // Use Javascript's built in setInterval method to count down once per second            
-            let countDown = setInterval(() => {
+            const countDown = setInterval(() => {
                 // run this DOM manipulation to decrement the countdown for the user
                 document.getElementById('big-numbers').innerHTML = --timer
                 if (timer === 0) {                    
@@ -211,13 +199,12 @@ async function runCountdown() {
             }, 1000)           
 		})
 	} catch(error) {
-		console.log(error);
+		console.log("Problem wiht runCountdown::", error);
 	}
 }
 
 function handleSelectPodRacer(target) {
 	// console.log("selected a pod", target.value)
-
 	// remove class selected from all racer options
 	const selected = document.querySelector('#racers .selected')
 	if(selected) {
@@ -228,12 +215,11 @@ function handleSelectPodRacer(target) {
 	target.classList.add('selected')
 
     // save the selected racer to the store
-    setPlayerId(target.value)
+    updateStoreValue('player_id', target.value)
 }
 
 function handleSelectTrack(target) {
 	// console.log("selected a track", target.value)
-
 	// remove class selected from all track options
 	const selected = document.querySelector('#tracks .selected')
 	if(selected) {
@@ -244,7 +230,7 @@ function handleSelectTrack(target) {
 	target.classList.add('selected')
 
     // save the selected track id to the store
-    setTrackId(target.value)
+    updateStoreValue('track_id', target.value)
     
 	
 }
@@ -252,7 +238,7 @@ function handleSelectTrack(target) {
 async function handleAccelerate() {
 	// console.log("accelerate button clicked")
     // Invoke the API call to accelerate
-    await accelerate(getRaceId())
+    await accelerate(getStoreValue('race_id'))
     
 }
 
@@ -360,7 +346,7 @@ function resultsView(positions) {
 }
 
 function raceProgress(positions) {
-	let userPlayer = positions.find(e => e.id === store.player_id)
+	let userPlayer = positions.find(e => e.id === getStoreValue('player_id'))
 	userPlayer.driver_name += " (you)"
 
 	positions = positions.sort((a, b) => (a.segment > b.segment) ? -1 : 1)
@@ -399,8 +385,8 @@ function renderAt(element, html) {
 
 // Customize Track and Rider Info ----------------------------
 function customizeTrack (track) {
-    let trackPath = '/assets/images/tracks/'
-    let trackInfo = {
+    const trackPath = '/assets/images/tracks/'
+    const trackInfo = {
         1: {
             name: 'Anahiem',
             map: trackPath + 'anahiem.jpg'
@@ -427,7 +413,7 @@ function customizeTrack (track) {
         }
     }
 
-    let customTrack = trackInfo[track.id]
+    const customTrack = trackInfo[track.id]
 
     // update track name and add map image
     track.name = customTrack.name;
@@ -437,8 +423,8 @@ function customizeTrack (track) {
 }
 
 function customizeRider (rider) {
-    let riderPath = '/assets/images/riders/' 
-    let riderInfo = {
+    const riderPath = '/assets/images/riders/' 
+    const riderInfo = {
         1: {
             name: "Eli Tomac",
             photo: riderPath + 'tomac.jpg'
@@ -462,7 +448,7 @@ function customizeRider (rider) {
     
     }
 
-    let customRider = riderInfo[rider.id]
+    const customRider = riderInfo[rider.id]
     rider.driver_name = customRider.name
     rider.photo = customRider.photo
 
@@ -517,7 +503,6 @@ function createRace(player_id, track_id) {
 }
 
 function getRace(id) {
-    console.log("Race ID:", id)
     // GET request to `${SERVER}/api/races/${id}`
     return fetch(`${SERVER}/api/races/${id}`)
         .then(res => res.json())
